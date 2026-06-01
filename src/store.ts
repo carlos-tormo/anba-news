@@ -7,7 +7,9 @@ const defaultData: BotData = {
     timezone: "Europe/Madrid",
     dailyQuestionCount: 5,
     askHour: 10,
-    publishHour: 21
+    publishHour: 21,
+    contextChannelIds: [],
+    contextLookbackHours: 48
   },
   gms: {},
   prompts: [],

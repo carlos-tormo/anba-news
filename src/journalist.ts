@@ -8,9 +8,16 @@ import {
 } from "discord.js";
 import { randomUUID } from "node:crypto";
 import { env } from "./config.js";
+import {
+  buildFranchiseContext,
+  collectRecentLeagueMessages,
+  contextSourceUrls,
+  type LeagueContextMessage
+} from "./context.js";
 import { chunkDiscordMessage } from "./messages.js";
 import { generateArticle } from "./news.js";
 import { loadQuestionBank, pickRandomQuestion, renderQuestion } from "./questions.js";
+import { writeQuestion } from "./question-writer.js";
 import { dateKeyForIso, getZonedNow } from "./time.js";
 import type { AnswerForArticle, BotData, GmRecord, PromptRecord } from "./types.js";
 import type { JsonStore } from "./store.js";
@@ -47,17 +54,35 @@ function latestOpenPrompt(data: BotData, userId: string): PromptRecord | undefin
     .find((prompt) => prompt.userId === userId && prompt.status === "sent");
 }
 
-async function sendQuestion(client: Client, store: JsonStore, gm: GmRecord): Promise<boolean> {
+async function sendQuestion(
+  client: Client,
+  store: JsonStore,
+  gm: GmRecord,
+  leagueMessages: LeagueContextMessage[]
+): Promise<boolean> {
   const questions = await loadQuestionBank();
   const template = pickRandomQuestion(questions);
+  const franchiseContext = buildFranchiseContext(leagueMessages, gm);
+  let writtenQuestion = {
+    category: template.category,
+    question: renderQuestion(template, gm)
+  };
+
+  try {
+    writtenQuestion = await writeQuestion(gm, template, franchiseContext);
+  } catch (error) {
+    console.warn(`[question] Failed to generate contextual question for ${gm.team}:`, error);
+  }
+
   const prompt: PromptRecord = {
     id: randomUUID(),
     userId: gm.userId,
     team: gm.team,
-    category: template.category,
-    question: renderQuestion(template, gm),
+    category: writtenQuestion.category,
+    question: writtenQuestion.question,
     status: "created",
-    sentAt: new Date().toISOString()
+    sentAt: new Date().toISOString(),
+    contextMessageUrls: contextSourceUrls(franchiseContext)
   };
 
   await store.mutate((data) => {
@@ -100,11 +125,12 @@ async function sendQuestion(client: Client, store: JsonStore, gm: GmRecord): Pro
 export async function askRandomGms(client: Client, store: JsonStore, count: number): Promise<AskResult> {
   const data = await store.read();
   const selected = selectGms(data, count);
+  const leagueMessages = await collectRecentLeagueMessages(client, data.settings);
   let sent = 0;
   let failed = 0;
 
   for (const gm of selected) {
-    const ok = await sendQuestion(client, store, gm);
+    const ok = await sendQuestion(client, store, gm, leagueMessages);
     if (ok) {
       sent += 1;
     } else {
@@ -123,7 +149,8 @@ export async function askSpecificGm(client: Client, store: JsonStore, userId: st
     return { attempted: 0, sent: 0, failed: 0 };
   }
 
-  const ok = await sendQuestion(client, store, gm);
+  const leagueMessages = await collectRecentLeagueMessages(client, data.settings);
+  const ok = await sendQuestion(client, store, gm, leagueMessages);
   return { attempted: 1, sent: ok ? 1 : 0, failed: ok ? 0 : 1 };
 }
 

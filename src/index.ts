@@ -15,7 +15,12 @@ assertRequiredEnv();
 
 const store = new JsonStore(env.dataFile);
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.DirectMessages, GatewayIntentBits.MessageContent],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.DirectMessages,
+    GatewayIntentBits.MessageContent
+  ],
   partials: [Partials.Channel]
 });
 

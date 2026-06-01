@@ -8,6 +8,10 @@ import {
 import { askRandomGms, askSpecificGm, countUnpostedAnswers, publishNews } from "./journalist.js";
 import type { JsonStore } from "./store.js";
 
+function formatChannelList(channelIds: string[]): string {
+  return channelIds.length > 0 ? channelIds.map((channelId) => `<#${channelId}>`).join(", ") : "sin configurar";
+}
+
 const gmCommand = new SlashCommandBuilder()
   .setName("gm")
   .setDescription("Gestiona los GMs de la liga NBA2K.")
@@ -41,6 +45,18 @@ const journalistCommand = new SlashCommandBuilder()
           .setDescription("Canal donde se publicarán las noticias.")
           .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
       )
+      .addChannelOption((option) =>
+        option
+          .setName("canal_contexto_1")
+          .setDescription("Primer canal para leer contexto reciente, por ejemplo #noticias.")
+          .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+      )
+      .addChannelOption((option) =>
+        option
+          .setName("canal_contexto_2")
+          .setDescription("Segundo canal para leer contexto reciente, por ejemplo #transacciones.")
+          .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+      )
       .addIntegerOption((option) =>
         option
           .setName("preguntas_diarias")
@@ -53,6 +69,16 @@ const journalistCommand = new SlashCommandBuilder()
       )
       .addIntegerOption((option) =>
         option.setName("hora_publicacion").setDescription("Hora para publicar noticias, 0-23.").setMinValue(0).setMaxValue(23)
+      )
+      .addIntegerOption((option) =>
+        option
+          .setName("horas_contexto")
+          .setDescription("Horas hacia atrás para leer contexto reciente.")
+          .setMinValue(1)
+          .setMaxValue(168)
+      )
+      .addBooleanOption((option) =>
+        option.setName("borrar_contexto").setDescription("Borra los canales de contexto configurados.")
       )
       .addStringOption((option) => option.setName("zona_horaria").setDescription("Zona horaria IANA, ej. Europe/Madrid."))
   )
@@ -148,14 +174,30 @@ async function handleJournalistCommand(
 
   if (subcommand === "configurar") {
     const newsChannel = interaction.options.getChannel("canal_noticias");
+    const contextChannel1 = interaction.options.getChannel("canal_contexto_1");
+    const contextChannel2 = interaction.options.getChannel("canal_contexto_2");
     const dailyQuestions = interaction.options.getInteger("preguntas_diarias");
     const askHour = interaction.options.getInteger("hora_preguntas");
     const publishHour = interaction.options.getInteger("hora_publicacion");
+    const contextLookbackHours = interaction.options.getInteger("horas_contexto");
+    const clearContext = interaction.options.getBoolean("borrar_contexto") ?? false;
     const timezone = interaction.options.getString("zona_horaria");
 
     const settings = await store.mutate((data) => {
       if (newsChannel) {
         data.settings.newsChannelId = newsChannel.id;
+      }
+      if (clearContext) {
+        data.settings.contextChannelIds = [];
+      } else if (contextChannel1 || contextChannel2) {
+        const contextChannelIds = [...data.settings.contextChannelIds];
+        if (contextChannel1) {
+          contextChannelIds[0] = contextChannel1.id;
+        }
+        if (contextChannel2) {
+          contextChannelIds[1] = contextChannel2.id;
+        }
+        data.settings.contextChannelIds = [...new Set(contextChannelIds.filter(Boolean))];
       }
       if (dailyQuestions !== null) {
         data.settings.dailyQuestionCount = dailyQuestions;
@@ -165,6 +207,9 @@ async function handleJournalistCommand(
       }
       if (publishHour !== null) {
         data.settings.publishHour = publishHour;
+      }
+      if (contextLookbackHours !== null) {
+        data.settings.contextLookbackHours = contextLookbackHours;
       }
       if (timezone) {
         data.settings.timezone = timezone.trim();
@@ -176,6 +221,8 @@ async function handleJournalistCommand(
       content: [
         "Configuración del periodista actualizada.",
         `Canal de noticias: ${settings.newsChannelId ? `<#${settings.newsChannelId}>` : "sin configurar"}`,
+        `Canales de contexto: ${formatChannelList(settings.contextChannelIds)}`,
+        `Ventana de contexto: ${settings.contextLookbackHours} h`,
         `Preguntas diarias: ${settings.dailyQuestionCount}`,
         `Hora de preguntas: ${settings.askHour}:00`,
         `Hora de publicación: ${settings.publishHour}:00`,
@@ -222,6 +269,8 @@ async function handleJournalistCommand(
         `Preguntas pendientes de respuesta: ${pendingPrompts}`,
         `Respuestas sin publicar: ${countUnpostedAnswers(data)}`,
         `Canal de noticias: ${data.settings.newsChannelId ? `<#${data.settings.newsChannelId}>` : "sin configurar"}`,
+        `Canales de contexto: ${formatChannelList(data.settings.contextChannelIds)}`,
+        `Ventana de contexto: ${data.settings.contextLookbackHours} h`,
         `Horario: pregunta a las ${data.settings.askHour}:00, publica a las ${data.settings.publishHour}:00 (${data.settings.timezone})`
       ].join("\n"),
       ephemeral: true

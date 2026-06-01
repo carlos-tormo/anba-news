@@ -2,6 +2,8 @@ export type PromptStatus = "created" | "sent" | "answered" | "failed";
 
 export interface BotSettings {
   newsChannelId?: string;
+  contextChannelIds: string[];
+  contextLookbackHours: number;
   timezone: string;
   dailyQuestionCount: number;
   askHour: number;
@@ -27,6 +29,7 @@ export interface PromptRecord {
   answeredAt?: string;
   answer?: string;
   error?: string;
+  contextMessageUrls?: string[];
 }
 
 export interface ArticleRecord {
