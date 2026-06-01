@@ -1,0 +1,42 @@
+[
+  {
+    "category": "front-office direction",
+    "text": "What is the clearest short-term priority for {team} right now: winning immediately, developing young players, reshaping the roster, or protecting flexibility?"
+  },
+  {
+    "category": "trade market",
+    "text": "How active do you expect {team} to be in the trade market this week, and what kind of player would change your outlook?"
+  },
+  {
+    "category": "locker-room pulse",
+    "text": "What is the mood around {team} after the latest stretch of games?"
+  },
+  {
+    "category": "rotation",
+    "text": "Which player on {team} has earned a bigger role, and what makes that role realistic?"
+  },
+  {
+    "category": "pressure",
+    "text": "Who inside {team} is under the most pressure to perform over the next few games?"
+  },
+  {
+    "category": "identity",
+    "text": "If {team} had to describe its identity in one sentence, what would it be?"
+  },
+  {
+    "category": "rumors",
+    "text": "What rumor, negotiation, or strategic question around {team} should the rest of the league be watching?"
+  },
+  {
+    "category": "season goals",
+    "text": "What would make this season a success for {team}, beyond the obvious answer of winning games?"
+  },
+  {
+    "category": "rivals",
+    "text": "Which rival GM or franchise is {team} watching most closely right now, and why?"
+  },
+  {
+    "category": "player development",
+    "text": "Which player development story on {team} deserves more league-wide attention?"
+  }
+]
