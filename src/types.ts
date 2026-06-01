@@ -1,4 +1,6 @@
 export type PromptStatus = "created" | "sent" | "answered" | "failed";
+export type ModerationStatus = "accepted" | "rejected";
+export type SubmittedQuestionStatus = "accepted" | "rejected" | "used";
 
 export interface BotSettings {
   newsChannelId?: string;
@@ -30,6 +32,7 @@ export interface PromptRecord {
   answer?: string;
   error?: string;
   contextMessageUrls?: string[];
+  submittedQuestionId?: string;
 }
 
 export interface ArticleRecord {
@@ -38,8 +41,37 @@ export interface ArticleRecord {
   title: string;
   body: string;
   sourcePromptIds: string[];
+  sourceRumorIds?: string[];
   postedAt: string;
   messageIds: string[];
+}
+
+export interface RumorRecord {
+  id: string;
+  userId: string;
+  userDisplayName: string;
+  team?: string;
+  text: string;
+  status: ModerationStatus;
+  moderationReason?: string;
+  dateKey: string;
+  createdAt: string;
+}
+
+export interface SubmittedQuestionRecord {
+  id: string;
+  userId: string;
+  userDisplayName: string;
+  targetUserId: string;
+  targetDisplayName: string;
+  targetTeam: string;
+  question: string;
+  status: SubmittedQuestionStatus;
+  moderationReason?: string;
+  dateKey: string;
+  createdAt: string;
+  usedAt?: string;
+  usedPromptId?: string;
 }
 
 export interface LastRunState {
@@ -51,6 +83,8 @@ export interface BotData {
   settings: BotSettings;
   gms: Record<string, GmRecord>;
   prompts: PromptRecord[];
+  rumors: RumorRecord[];
+  submittedQuestions: SubmittedQuestionRecord[];
   articles: ArticleRecord[];
   lastRun: LastRunState;
 }
@@ -65,4 +99,10 @@ export interface AnswerForArticle {
   team: string;
   question: string;
   answer: string;
+}
+
+export interface RumorForArticle {
+  rumorId: string;
+  team?: string;
+  text: string;
 }

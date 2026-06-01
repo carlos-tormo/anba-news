@@ -5,17 +5,46 @@ import {
   PermissionFlagsBits,
   SlashCommandBuilder
 } from "discord.js";
+import { randomUUID } from "node:crypto";
+import { env } from "./config.js";
 import { askRandomGms, askSpecificGm, countUnpostedAnswers, publishNews } from "./journalist.js";
+import { moderateSubmission } from "./moderation.js";
 import type { JsonStore } from "./store.js";
+import { getZonedNow } from "./time.js";
 
 function formatChannelList(channelIds: string[]): string {
   return channelIds.length > 0 ? channelIds.map((channelId) => `<#${channelId}>`).join(", ") : "sin configurar";
 }
 
+function getInteractionDisplayName(interaction: ChatInputCommandInteraction): string {
+  return interaction.member && "displayName" in interaction.member && typeof interaction.member.displayName === "string"
+    ? interaction.member.displayName
+    : interaction.user.globalName ?? interaction.user.username;
+}
+
+function isBotAdmin(interaction: ChatInputCommandInteraction): boolean {
+  if (env.botAdminUserIds.length > 0) {
+    return env.botAdminUserIds.includes(interaction.user.id);
+  }
+
+  return interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) ?? false;
+}
+
+async function requireBotAdmin(interaction: ChatInputCommandInteraction): Promise<boolean> {
+  if (isBotAdmin(interaction)) {
+    return true;
+  }
+
+  await interaction.reply({
+    content: "Solo el administrador del bot puede usar este comando.",
+    ephemeral: true
+  });
+  return false;
+}
+
 const gmCommand = new SlashCommandBuilder()
   .setName("gm")
   .setDescription("Gestiona los GMs de la liga NBA2K.")
-  .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
   .addSubcommand((subcommand) =>
     subcommand
       .setName("asignar")
@@ -34,7 +63,6 @@ const gmCommand = new SlashCommandBuilder()
 const journalistCommand = new SlashCommandBuilder()
   .setName("periodista")
   .setDescription("Configura y usa el periodista de la liga.")
-  .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
   .addSubcommand((subcommand) =>
     subcommand
       .setName("configurar")
@@ -94,7 +122,42 @@ const journalistCommand = new SlashCommandBuilder()
   .addSubcommand((subcommand) => subcommand.setName("publicar-ahora").setDescription("Publica noticias con respuestas pendientes."))
   .addSubcommand((subcommand) => subcommand.setName("estado").setDescription("Muestra el estado del periodista."));
 
-export const commandPayloads = [gmCommand.toJSON(), journalistCommand.toJSON()];
+const rumorCommand = new SlashCommandBuilder()
+  .setName("rumor")
+  .setDescription("Filtra un rumor a la redacción del periodista.")
+  .addStringOption((option) =>
+    option
+      .setName("texto")
+      .setDescription("Rumor que quieres filtrar. Puede ser verdadero o falso.")
+      .setRequired(true)
+      .setMinLength(10)
+      .setMaxLength(600)
+  )
+  .addStringOption((option) =>
+    option.setName("equipo").setDescription("Equipo relacionado, si hay uno concreto.").setMaxLength(80)
+  );
+
+const submittedQuestionCommand = new SlashCommandBuilder()
+  .setName("pregunta")
+  .setDescription("Propón una pregunta para que el periodista se la haga a un GM.")
+  .addUserOption((option) =>
+    option.setName("destino").setDescription("GM/equipo al que va dirigida la pregunta.").setRequired(true)
+  )
+  .addStringOption((option) =>
+    option
+      .setName("texto")
+      .setDescription("Pregunta que quieres proponer.")
+      .setRequired(true)
+      .setMinLength(10)
+      .setMaxLength(500)
+  );
+
+export const commandPayloads = [
+  gmCommand.toJSON(),
+  journalistCommand.toJSON(),
+  rumorCommand.toJSON(),
+  submittedQuestionCommand.toJSON()
+];
 
 export async function registerCommands(client: Client, guildId?: string): Promise<void> {
   if (guildId) {
@@ -112,12 +175,28 @@ export async function registerCommands(client: Client, guildId?: string): Promis
 
 export async function handleCommand(interaction: ChatInputCommandInteraction, client: Client, store: JsonStore): Promise<void> {
   if (interaction.commandName === "gm") {
+    if (!(await requireBotAdmin(interaction))) {
+      return;
+    }
     await handleGmCommand(interaction, store);
     return;
   }
 
   if (interaction.commandName === "periodista") {
+    if (!(await requireBotAdmin(interaction))) {
+      return;
+    }
     await handleJournalistCommand(interaction, client, store);
+    return;
+  }
+
+  if (interaction.commandName === "rumor") {
+    await handleRumorCommand(interaction, store);
+    return;
+  }
+
+  if (interaction.commandName === "pregunta") {
+    await handleSubmittedQuestionCommand(interaction, store);
   }
 }
 
@@ -255,7 +334,9 @@ async function handleJournalistCommand(
       return;
     }
 
-    await interaction.editReply(`Publicado "${result.title}" usando ${result.answersUsed} respuesta(s).`);
+    await interaction.editReply(
+      `Publicado "${result.title}" usando ${result.answersUsed} respuesta(s) y ${result.rumorsUsed} rumor(es).`
+    );
     return;
   }
 
@@ -263,11 +344,16 @@ async function handleJournalistCommand(
     const data = await store.read();
     const activeGms = Object.values(data.gms).filter((gm) => gm.active).length;
     const pendingPrompts = data.prompts.filter((prompt) => prompt.status === "sent").length;
+    const usedRumorIds = new Set(data.articles.flatMap((article) => article.sourceRumorIds ?? []));
+    const pendingRumors = data.rumors.filter((rumor) => rumor.status === "accepted" && !usedRumorIds.has(rumor.id)).length;
+    const pendingCommunityQuestions = data.submittedQuestions.filter((question) => question.status === "accepted").length;
     await interaction.reply({
       content: [
         `GMs activos: ${activeGms}`,
         `Preguntas pendientes de respuesta: ${pendingPrompts}`,
         `Respuestas sin publicar: ${countUnpostedAnswers(data)}`,
+        `Rumores aceptados: ${pendingRumors}`,
+        `Preguntas de comunidad en cola: ${pendingCommunityQuestions}`,
         `Canal de noticias: ${data.settings.newsChannelId ? `<#${data.settings.newsChannelId}>` : "sin configurar"}`,
         `Canales de contexto: ${formatChannelList(data.settings.contextChannelIds)}`,
         `Ventana de contexto: ${data.settings.contextLookbackHours} h`,
@@ -276,4 +362,98 @@ async function handleJournalistCommand(
       ephemeral: true
     });
   }
+}
+
+async function handleRumorCommand(interaction: ChatInputCommandInteraction, store: JsonStore): Promise<void> {
+  if (!interaction.guildId) {
+    await interaction.reply({ content: "Este comando solo se puede usar dentro del servidor.", ephemeral: true });
+    return;
+  }
+
+  await interaction.deferReply({ ephemeral: true });
+
+  const text = interaction.options.getString("texto", true).trim();
+  const team = interaction.options.getString("equipo")?.trim();
+  const data = await store.read();
+  const dateKey = getZonedNow(data.settings.timezone).dateKey;
+
+  const alreadySubmittedToday = data.rumors.some((rumor) => {
+    return rumor.userId === interaction.user.id && rumor.dateKey === dateKey && rumor.status === "accepted";
+  });
+
+  if (alreadySubmittedToday) {
+    await interaction.editReply("Ya has filtrado un rumor hoy. Puedes volver a enviar otro mañana.");
+    return;
+  }
+
+  const moderation = await moderateSubmission("rumor", text);
+  await store.mutate((latest) => {
+    latest.rumors.push({
+      id: randomUUID(),
+      userId: interaction.user.id,
+      userDisplayName: getInteractionDisplayName(interaction),
+      team: team || undefined,
+      text,
+      status: moderation.accepted ? "accepted" : "rejected",
+      moderationReason: moderation.reason,
+      dateKey,
+      createdAt: new Date().toISOString()
+    });
+  });
+
+  if (!moderation.accepted) {
+    await interaction.editReply(`No puedo pasar este rumor a la redacción: ${moderation.reason ?? "no supera el filtro."}`);
+    return;
+  }
+
+  await interaction.editReply("Rumor recibido. La redacción podrá usarlo como material no verificado en próximas noticias.");
+}
+
+async function handleSubmittedQuestionCommand(
+  interaction: ChatInputCommandInteraction,
+  store: JsonStore
+): Promise<void> {
+  if (!interaction.guildId) {
+    await interaction.reply({ content: "Este comando solo se puede usar dentro del servidor.", ephemeral: true });
+    return;
+  }
+
+  await interaction.deferReply({ ephemeral: true });
+
+  const target = interaction.options.getUser("destino", true);
+  const question = interaction.options.getString("texto", true).trim();
+  const data = await store.read();
+  const targetGm = data.gms[target.id];
+  const dateKey = getZonedNow(data.settings.timezone).dateKey;
+
+  if (!targetGm || !targetGm.active) {
+    await interaction.editReply("El destino debe ser un GM registrado y activo.");
+    return;
+  }
+
+  const moderation = await moderateSubmission("question", question);
+  await store.mutate((latest) => {
+    latest.submittedQuestions.push({
+      id: randomUUID(),
+      userId: interaction.user.id,
+      userDisplayName: getInteractionDisplayName(interaction),
+      targetUserId: target.id,
+      targetDisplayName: targetGm.displayName,
+      targetTeam: targetGm.team,
+      question,
+      status: moderation.accepted ? "accepted" : "rejected",
+      moderationReason: moderation.reason,
+      dateKey,
+      createdAt: new Date().toISOString()
+    });
+  });
+
+  if (!moderation.accepted) {
+    await interaction.editReply(`No puedo guardar esta pregunta: ${moderation.reason ?? "no supera el filtro."}`);
+    return;
+  }
+
+  await interaction.editReply(
+    `Pregunta guardada para ${targetGm.team}. El periodista podrá considerarla a partir de mañana.`
+  );
 }

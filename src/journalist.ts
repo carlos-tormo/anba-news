@@ -17,9 +17,16 @@ import {
 import { chunkDiscordMessage } from "./messages.js";
 import { generateArticle } from "./news.js";
 import { loadQuestionBank, pickRandomQuestion, renderQuestion } from "./questions.js";
-import { writeQuestion } from "./question-writer.js";
+import { writeQuestion, type WrittenQuestion } from "./question-writer.js";
 import { dateKeyForIso, getZonedNow } from "./time.js";
-import type { AnswerForArticle, BotData, GmRecord, PromptRecord } from "./types.js";
+import type {
+  AnswerForArticle,
+  BotData,
+  GmRecord,
+  PromptRecord,
+  RumorForArticle,
+  SubmittedQuestionRecord
+} from "./types.js";
 import type { JsonStore } from "./store.js";
 
 export interface AskResult {
@@ -33,6 +40,7 @@ export interface PublishResult {
   reason?: string;
   title?: string;
   answersUsed: number;
+  rumorsUsed: number;
 }
 
 function shuffle<T>(items: T[]): T[] {
@@ -54,22 +62,36 @@ function latestOpenPrompt(data: BotData, userId: string): PromptRecord | undefin
     .find((prompt) => prompt.userId === userId && prompt.status === "sent");
 }
 
+function submittedQuestionBacklog(
+  data: BotData,
+  gm: GmRecord,
+  todayDateKey: string
+): SubmittedQuestionRecord[] {
+  return data.submittedQuestions
+    .filter((question) => {
+      return question.status === "accepted" && question.targetUserId === gm.userId && question.dateKey !== todayDateKey;
+    })
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .slice(0, 3);
+}
+
 async function sendQuestion(
   client: Client,
   store: JsonStore,
   gm: GmRecord,
-  leagueMessages: LeagueContextMessage[]
+  leagueMessages: LeagueContextMessage[],
+  submittedQuestions: SubmittedQuestionRecord[]
 ): Promise<boolean> {
   const questions = await loadQuestionBank();
   const template = pickRandomQuestion(questions);
   const franchiseContext = buildFranchiseContext(leagueMessages, gm);
-  let writtenQuestion = {
+  let writtenQuestion: WrittenQuestion = {
     category: template.category,
     question: renderQuestion(template, gm)
   };
 
   try {
-    writtenQuestion = await writeQuestion(gm, template, franchiseContext);
+    writtenQuestion = await writeQuestion(gm, template, franchiseContext, submittedQuestions);
   } catch (error) {
     console.warn(`[question] Failed to generate contextual question for ${gm.team}:`, error);
   }
@@ -82,7 +104,8 @@ async function sendQuestion(
     question: writtenQuestion.question,
     status: "created",
     sentAt: new Date().toISOString(),
-    contextMessageUrls: contextSourceUrls(franchiseContext)
+    contextMessageUrls: contextSourceUrls(franchiseContext),
+    submittedQuestionId: writtenQuestion.submittedQuestionId
   };
 
   await store.mutate((data) => {
@@ -108,6 +131,14 @@ async function sendQuestion(
         existing.status = "sent";
         existing.sentAt = new Date().toISOString();
       }
+      if (prompt.submittedQuestionId) {
+        const submittedQuestion = data.submittedQuestions.find((item) => item.id === prompt.submittedQuestionId);
+        if (submittedQuestion) {
+          submittedQuestion.status = "used";
+          submittedQuestion.usedAt = new Date().toISOString();
+          submittedQuestion.usedPromptId = prompt.id;
+        }
+      }
     });
     return true;
   } catch (error) {
@@ -126,11 +157,12 @@ export async function askRandomGms(client: Client, store: JsonStore, count: numb
   const data = await store.read();
   const selected = selectGms(data, count);
   const leagueMessages = await collectRecentLeagueMessages(client, data.settings);
+  const todayDateKey = getZonedNow(data.settings.timezone).dateKey;
   let sent = 0;
   let failed = 0;
 
   for (const gm of selected) {
-    const ok = await sendQuestion(client, store, gm, leagueMessages);
+    const ok = await sendQuestion(client, store, gm, leagueMessages, submittedQuestionBacklog(data, gm, todayDateKey));
     if (ok) {
       sent += 1;
     } else {
@@ -150,7 +182,8 @@ export async function askSpecificGm(client: Client, store: JsonStore, userId: st
   }
 
   const leagueMessages = await collectRecentLeagueMessages(client, data.settings);
-  const ok = await sendQuestion(client, store, gm, leagueMessages);
+  const todayDateKey = getZonedNow(data.settings.timezone).dateKey;
+  const ok = await sendQuestion(client, store, gm, leagueMessages, submittedQuestionBacklog(data, gm, todayDateKey));
   return { attempted: 1, sent: ok ? 1 : 0, failed: ok ? 0 : 1 };
 }
 
@@ -196,6 +229,18 @@ function getUnpostedAnswers(data: BotData): AnswerForArticle[] {
     }));
 }
 
+function getUnpostedRumors(data: BotData): RumorForArticle[] {
+  const usedRumorIds = new Set(data.articles.flatMap((article) => article.sourceRumorIds ?? []));
+
+  return data.rumors
+    .filter((rumor) => rumor.status === "accepted" && !usedRumorIds.has(rumor.id))
+    .map((rumor) => ({
+      rumorId: rumor.id,
+      team: rumor.team,
+      text: rumor.text
+    }));
+}
+
 function isSendableTextChannel(channel: Channel | null): channel is TextChannel | NewsChannel | DMChannel {
   return Boolean(channel?.isTextBased());
 }
@@ -205,20 +250,26 @@ export async function publishNews(client: Client, store: JsonStore): Promise<Pub
   const channelId = data.settings.newsChannelId;
 
   if (!channelId) {
-    return { posted: false, reason: "No hay ningún canal de noticias configurado.", answersUsed: 0 };
+    return { posted: false, reason: "No hay ningún canal de noticias configurado.", answersUsed: 0, rumorsUsed: 0 };
   }
 
   const answers = getUnpostedAnswers(data);
-  if (answers.length === 0) {
-    return { posted: false, reason: "No hay respuestas de GMs pendientes de publicar.", answersUsed: 0 };
+  const rumors = getUnpostedRumors(data);
+  if (answers.length === 0 && rumors.length === 0) {
+    return { posted: false, reason: "No hay respuestas de GMs ni rumores pendientes de publicar.", answersUsed: 0, rumorsUsed: 0 };
   }
 
   const channel = await client.channels.fetch(channelId);
   if (!isSendableTextChannel(channel)) {
-    return { posted: false, reason: "El canal de noticias configurado no permite enviar mensajes de texto.", answersUsed: 0 };
+    return {
+      posted: false,
+      reason: "El canal de noticias configurado no permite enviar mensajes de texto.",
+      answersUsed: 0,
+      rumorsUsed: 0
+    };
   }
 
-  const article = await generateArticle(answers);
+  const article = await generateArticle(answers, rumors);
   const content = [`# ${article.title}`, article.body].join("\n\n");
   const messageIds: string[] = [];
 
@@ -235,12 +286,13 @@ export async function publishNews(client: Client, store: JsonStore): Promise<Pub
       title: article.title,
       body: article.body,
       sourcePromptIds: answers.map((answer) => answer.promptId),
+      sourceRumorIds: rumors.map((rumor) => rumor.rumorId),
       postedAt: new Date().toISOString(),
       messageIds
     });
   });
 
-  return { posted: true, title: article.title, answersUsed: answers.length };
+  return { posted: true, title: article.title, answersUsed: answers.length, rumorsUsed: rumors.length };
 }
 
 export async function markAskedToday(store: JsonStore): Promise<void> {

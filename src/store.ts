@@ -13,6 +13,8 @@ const defaultData: BotData = {
   },
   gms: {},
   prompts: [],
+  rumors: [],
+  submittedQuestions: [],
   articles: [],
   lastRun: {}
 };
@@ -22,6 +24,8 @@ function mergeDefaults(data: Partial<BotData>): BotData {
     settings: { ...defaultData.settings, ...data.settings },
     gms: data.gms ?? {},
     prompts: data.prompts ?? [],
+    rumors: data.rumors ?? [],
+    submittedQuestions: data.submittedQuestions ?? [],
     articles: data.articles ?? [],
     lastRun: data.lastRun ?? {}
   };

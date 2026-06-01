@@ -18,9 +18,17 @@ function normalizeEnvValue(value: string | undefined): string | undefined {
   return trimmed;
 }
 
+function parseCsvEnv(value: string | undefined): string[] {
+  return (normalizeEnvValue(value) ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 export const env = {
   discordToken: normalizeEnvValue(process.env.DISCORD_TOKEN) ?? "",
   discordGuildId: normalizeEnvValue(process.env.DISCORD_GUILD_ID),
+  botAdminUserIds: parseCsvEnv(process.env.BOT_ADMIN_USER_IDS ?? process.env.DISCORD_ADMIN_USER_IDS),
   openaiApiKey: normalizeEnvValue(process.env.OPENAI_API_KEY),
   openaiModel: normalizeEnvValue(process.env.OPENAI_MODEL) ?? "gpt-5.4",
   journalistName: normalizeEnvValue(process.env.JOURNALIST_NAME) ?? "El Insider de la Liga",
