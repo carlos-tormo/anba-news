@@ -23,7 +23,7 @@ export const env = {
   discordGuildId: normalizeEnvValue(process.env.DISCORD_GUILD_ID),
   openaiApiKey: normalizeEnvValue(process.env.OPENAI_API_KEY),
   openaiModel: normalizeEnvValue(process.env.OPENAI_MODEL) ?? "gpt-5.4",
-  journalistName: normalizeEnvValue(process.env.JOURNALIST_NAME) ?? "The Association Insider",
+  journalistName: normalizeEnvValue(process.env.JOURNALIST_NAME) ?? "El Insider de la Liga",
   dataFile: path.resolve(rootDir, normalizeEnvValue(process.env.DATA_FILE) ?? "data/league-journalist.json"),
   questionFile: path.resolve(rootDir, normalizeEnvValue(process.env.QUESTION_FILE) ?? "config/questions.json")
 };

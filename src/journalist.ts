@@ -69,11 +69,11 @@ async function sendQuestion(client: Client, store: JsonStore, gm: GmRecord): Pro
     await user.send(
       [
         `**${env.journalistName}**`,
-        `Quick league question for the ${gm.team} front office:`,
+        `Pregunta rápida para la dirección deportiva de ${gm.team}:`,
         "",
         prompt.question,
         "",
-        "Reply directly to this DM and I may use your answer in today's league news."
+        "Responde directamente a este DM y podría usar tu respuesta en las noticias de la liga."
       ].join("\n")
     );
 
@@ -150,9 +150,9 @@ export async function handleDmAnswer(message: Message, store: JsonStore): Promis
   });
 
   if (updated) {
-    await message.reply("Got it. I may use this in the next league news post.");
+    await message.reply("Recibido. Podría usarlo en la próxima publicación de noticias de la liga.");
   } else {
-    await message.reply("I do not have an open question for you right now.");
+    await message.reply("Ahora mismo no tengo ninguna pregunta abierta para ti.");
   }
 }
 
@@ -178,17 +178,17 @@ export async function publishNews(client: Client, store: JsonStore): Promise<Pub
   const channelId = data.settings.newsChannelId;
 
   if (!channelId) {
-    return { posted: false, reason: "No news channel configured.", answersUsed: 0 };
+    return { posted: false, reason: "No hay ningún canal de noticias configurado.", answersUsed: 0 };
   }
 
   const answers = getUnpostedAnswers(data);
   if (answers.length === 0) {
-    return { posted: false, reason: "No unposted GM answers available.", answersUsed: 0 };
+    return { posted: false, reason: "No hay respuestas de GMs pendientes de publicar.", answersUsed: 0 };
   }
 
   const channel = await client.channels.fetch(channelId);
   if (!isSendableTextChannel(channel)) {
-    return { posted: false, reason: "Configured news channel is not text-sendable.", answersUsed: 0 };
+    return { posted: false, reason: "El canal de noticias configurado no permite enviar mensajes de texto.", answersUsed: 0 };
   }
 
   const article = await generateArticle(answers);

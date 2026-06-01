@@ -4,16 +4,16 @@ import type { GmRecord, QuestionTemplate } from "./types.js";
 
 const fallbackQuestions: QuestionTemplate[] = [
   {
-    category: "front-office direction",
-    text: "What is the clearest front-office priority for {team} right now?"
+    category: "dirección deportiva",
+    text: "¿Cuál es la prioridad más clara de la dirección deportiva de {team} ahora mismo?"
   },
   {
-    category: "rotation",
-    text: "Which player on {team} has earned a bigger role?"
+    category: "rotación",
+    text: "¿Qué jugador de {team} se ha ganado un rol más importante?"
   },
   {
-    category: "trade market",
-    text: "How active should the league expect {team} to be in trade talks?"
+    category: "mercado de traspasos",
+    text: "¿Qué nivel de actividad debería esperar la liga de {team} en conversaciones de traspaso?"
   }
 ];
 

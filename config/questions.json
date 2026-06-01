@@ -1,42 +1,42 @@
 [
   {
-    "category": "front-office direction",
-    "text": "What is the clearest short-term priority for {team} right now: winning immediately, developing young players, reshaping the roster, or protecting flexibility?"
+    "category": "dirección deportiva",
+    "text": "¿Cuál es la prioridad más clara de {team} a corto plazo: competir ya, desarrollar jóvenes, remodelar la plantilla o proteger flexibilidad?"
   },
   {
-    "category": "trade market",
-    "text": "How active do you expect {team} to be in the trade market this week, and what kind of player would change your outlook?"
+    "category": "mercado de traspasos",
+    "text": "¿Qué nivel de actividad esperas de {team} en el mercado esta semana, y qué tipo de jugador podría cambiar vuestra perspectiva?"
   },
   {
-    "category": "locker-room pulse",
-    "text": "What is the mood around {team} after the latest stretch of games?"
+    "category": "vestuario",
+    "text": "¿Cómo describirías el ambiente alrededor de {team} después del último tramo de partidos?"
   },
   {
-    "category": "rotation",
-    "text": "Which player on {team} has earned a bigger role, and what makes that role realistic?"
+    "category": "rotación",
+    "text": "¿Qué jugador de {team} se ha ganado un rol más importante, y por qué ese cambio sería realista?"
   },
   {
-    "category": "pressure",
-    "text": "Who inside {team} is under the most pressure to perform over the next few games?"
+    "category": "presión",
+    "text": "¿Quién dentro de {team} está bajo más presión para rendir en los próximos partidos?"
   },
   {
-    "category": "identity",
-    "text": "If {team} had to describe its identity in one sentence, what would it be?"
+    "category": "identidad",
+    "text": "Si {team} tuviera que definir su identidad en una sola frase, ¿cuál sería?"
   },
   {
-    "category": "rumors",
-    "text": "What rumor, negotiation, or strategic question around {team} should the rest of the league be watching?"
+    "category": "rumores",
+    "text": "¿Qué rumor, negociación o decisión estratégica alrededor de {team} debería seguir de cerca el resto de la liga?"
   },
   {
-    "category": "season goals",
-    "text": "What would make this season a success for {team}, beyond the obvious answer of winning games?"
+    "category": "objetivos de temporada",
+    "text": "¿Qué haría que esta temporada fuera un éxito para {team}, más allá de la respuesta obvia de ganar partidos?"
   },
   {
-    "category": "rivals",
-    "text": "Which rival GM or franchise is {team} watching most closely right now, and why?"
+    "category": "rivales",
+    "text": "¿Qué GM rival o franquicia está observando {team} con más atención ahora mismo, y por qué?"
   },
   {
-    "category": "player development",
-    "text": "Which player development story on {team} deserves more league-wide attention?"
+    "category": "desarrollo de jugadores",
+    "text": "¿Qué historia de desarrollo individual en {team} merece más atención dentro de la liga?"
   }
 ]

@@ -1,101 +1,126 @@
-# NBA2K League Journalist Bot
+# Bot Periodista para Liga NBA2K
 
-A Discord bot for a 30-user NBA2K simulation league. It acts like a recurring league journalist: it DMs GMs with roleplay questions, records their answers, and publishes a daily news recap in a configured Discord channel.
+Bot de Discord para una liga NBA2K de simulación completa con GMs reales. El bot actúa como un periodista: pregunta por DM a los GMs, guarda sus respuestas y publica noticias diarias en el canal configurado.
 
-## What It Does
+## Qué Hace
 
-- Registers GMs and their teams with slash commands.
-- Sends recurring DM questions to random registered GMs.
-- Records answers when GMs reply directly to the bot in DM.
-- Publishes a daily league article from answered questions.
-- Uses OpenAI for richer articles when `OPENAI_API_KEY` is configured.
-- Falls back to a simple generated recap when no OpenAI key is present.
-- Stores data locally in `data/league-journalist.json`.
+- Registra GMs y sus franquicias con comandos slash.
+- Envía preguntas recurrentes por DM a GMs aleatorios.
+- Guarda las respuestas cuando los GMs responden directamente al bot por DM.
+- Publica una noticia diaria con las respuestas pendientes.
+- Usa OpenAI para redactar noticias más elaboradas si `OPENAI_API_KEY` está configurada.
+- Si no hay clave de OpenAI, publica un resumen simple.
+- Guarda los datos localmente en `data/league-journalist.json`.
 
-## Setup
+## Configuración Local
 
-1. Create a Discord application and bot in the Discord Developer Portal.
-2. Enable the bot's `Message Content Intent` under the bot settings. The bot needs this to read GM replies in DMs.
-3. Invite the bot to your server with these scopes:
+1. Crea una aplicación y un bot en el Discord Developer Portal.
+2. Activa `Message Content Intent` en la sección del bot. Es necesario para leer respuestas por DM.
+3. Invita el bot a tu servidor con estos scopes:
    - `bot`
    - `applications.commands`
-4. Install dependencies:
+4. Instala dependencias:
 
 ```bash
 npm install
 ```
 
-5. Create your environment file:
+5. Crea el archivo de entorno:
 
 ```bash
 cp .env.example .env
 ```
 
-6. Fill in `.env` with your bot token. Add `DISCORD_GUILD_ID` while testing so commands register to your server quickly.
+6. Rellena `.env` con el token del bot. Añade `DISCORD_GUILD_ID` durante pruebas para que los comandos aparezcan rápido en tu servidor.
 
-7. Run the bot:
+7. Ejecuta el bot:
 
 ```bash
 npm run dev
 ```
 
-## Slash Commands
+## Comandos de Discord
 
-`/gm set user:@User team:"Atlanta Hawks"`  
-Registers or updates a GM.
+`/gm asignar usuario:@Usuario equipo:"Los Angeles Lakers"`  
+Registra o actualiza un GM.
 
-`/gm remove user:@User`  
-Removes a GM from the active pool.
+`/gm quitar usuario:@Usuario`  
+Elimina a un GM del grupo activo.
 
-`/gm list`  
-Shows registered GMs.
+`/gm lista`  
+Muestra los GMs registrados.
 
-`/journalist configure`  
-Sets the news channel, daily question count, ask hour, publish hour, and timezone.
+`/periodista configurar`  
+Configura el canal de noticias, preguntas diarias, hora de preguntas, hora de publicación y zona horaria.
 
-`/journalist ask-now`  
-Immediately sends questions to a random sample of GMs, or to a specific GM.
+`/periodista preguntar-ahora`  
+Envía preguntas inmediatamente a una muestra aleatoria de GMs o a un GM concreto.
 
-`/journalist publish-now`  
-Immediately publishes a news article from unposted answers.
+`/periodista publicar-ahora`  
+Publica una noticia inmediatamente usando respuestas pendientes.
 
-`/journalist status`  
-Shows the current bot configuration and pending answer counts.
+`/periodista estado`  
+Muestra el estado actual del bot.
 
-## Recommended League Flow
+## Flujo Recomendado de Pruebas
 
-1. Register all 30 GMs with `/gm set`.
-2. Configure the news channel with `/journalist configure`.
-3. Use `/journalist ask-now count:3` to test DMs.
-4. Ask a few users to reply in DM.
-5. Use `/journalist publish-now` to test the article output.
-6. Leave the bot running for automatic daily questions and publishing.
+1. Configura el canal de noticias:
 
-## Railway Deployment
+```text
+/periodista configurar canal_noticias:#noticias preguntas_diarias:1 hora_preguntas:10 hora_publicacion:21 zona_horaria:Europe/Madrid
+```
 
-Deploy this repository as a Node.js service with this start command:
+2. Regístrate como GM de prueba:
+
+```text
+/gm asignar usuario:@TuUsuario equipo:"Los Angeles Lakers"
+```
+
+3. Comprueba el estado:
+
+```text
+/periodista estado
+```
+
+4. Lanza una pregunta manual:
+
+```text
+/periodista preguntar-ahora usuario:@TuUsuario
+```
+
+5. Responde al DM del bot como si fueras el GM.
+
+6. Publica una noticia manual:
+
+```text
+/periodista publicar-ahora
+```
+
+## Despliegue en Railway
+
+Despliega este repositorio como un servicio Node.js con este comando de inicio:
 
 ```bash
 npm start
 ```
 
-Set these Railway variables:
+Configura estas variables en Railway:
 
 ```env
-DISCORD_TOKEN=your_raw_discord_bot_token
-DISCORD_GUILD_ID=your_discord_server_id
-JOURNALIST_NAME=The Association Insider
-OPENAI_API_KEY=optional_openai_key
+DISCORD_TOKEN=token_raw_del_bot_de_discord
+DISCORD_GUILD_ID=id_de_tu_servidor
+JOURNALIST_NAME=El Insider de la Liga
+OPENAI_API_KEY=clave_opcional_de_openai
 OPENAI_MODEL=gpt-5.4
 ```
 
-`DISCORD_TOKEN` must be the bot token from Discord Developer Portal > Bot > Token. Do not use the client secret, public key, application ID, OAuth URL, quotes, or a leading `Bot ` prefix.
+`DISCORD_TOKEN` debe ser el token del bot desde Discord Developer Portal > Bot > Token. No uses el client secret, public key, application ID, URL OAuth, comillas ni el prefijo `Bot `.
 
-Keep the Railway service at one replica. Multiple replicas can send duplicate DMs and duplicate news posts.
+Mantén el servicio de Railway con una sola réplica. Varias réplicas podrían enviar DMs duplicados y publicar noticias duplicadas.
 
-## Notes
+## Notas
 
-- Times use the configured timezone, defaulting to `Europe/Madrid`.
-- The default schedule asks questions at 10:00 and publishes at 21:00.
-- GMs with an unanswered active prompt are skipped by random selection to avoid piling up DMs.
-- You can edit `config/questions.json` to match your league tone.
+- Los horarios usan la zona horaria configurada, por defecto `Europe/Madrid`.
+- Por defecto el bot pregunta a las 10:00 y publica a las 21:00.
+- Los GMs con una pregunta abierta sin responder no reciben otra pregunta aleatoria para evitar acumular DMs.
+- Puedes editar `config/questions.json` para adaptar el tono de las preguntas a tu liga.

@@ -10,63 +10,63 @@ import type { JsonStore } from "./store.js";
 
 const gmCommand = new SlashCommandBuilder()
   .setName("gm")
-  .setDescription("Manage NBA2K league GMs.")
+  .setDescription("Gestiona los GMs de la liga NBA2K.")
   .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
   .addSubcommand((subcommand) =>
     subcommand
-      .setName("set")
-      .setDescription("Register or update a GM.")
-      .addUserOption((option) => option.setName("user").setDescription("Discord user.").setRequired(true))
-      .addStringOption((option) => option.setName("team").setDescription("Franchise name.").setRequired(true))
+      .setName("asignar")
+      .setDescription("Registra o actualiza un GM.")
+      .addUserOption((option) => option.setName("usuario").setDescription("Usuario de Discord.").setRequired(true))
+      .addStringOption((option) => option.setName("equipo").setDescription("Nombre de la franquicia.").setRequired(true))
   )
   .addSubcommand((subcommand) =>
     subcommand
-      .setName("remove")
-      .setDescription("Deactivate a GM.")
-      .addUserOption((option) => option.setName("user").setDescription("Discord user.").setRequired(true))
+      .setName("quitar")
+      .setDescription("Desactiva a un GM.")
+      .addUserOption((option) => option.setName("usuario").setDescription("Usuario de Discord.").setRequired(true))
   )
-  .addSubcommand((subcommand) => subcommand.setName("list").setDescription("List registered GMs."));
+  .addSubcommand((subcommand) => subcommand.setName("lista").setDescription("Muestra los GMs registrados."));
 
 const journalistCommand = new SlashCommandBuilder()
-  .setName("journalist")
-  .setDescription("Configure and operate the league journalist.")
+  .setName("periodista")
+  .setDescription("Configura y usa el periodista de la liga.")
   .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
   .addSubcommand((subcommand) =>
     subcommand
-      .setName("configure")
-      .setDescription("Configure daily journalist behavior.")
+      .setName("configurar")
+      .setDescription("Configura el comportamiento diario del periodista.")
       .addChannelOption((option) =>
         option
-          .setName("news_channel")
-          .setDescription("Channel where news will be posted.")
+          .setName("canal_noticias")
+          .setDescription("Canal donde se publicarán las noticias.")
           .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
       )
       .addIntegerOption((option) =>
         option
-          .setName("daily_questions")
-          .setDescription("Number of random GMs to ask each day.")
+          .setName("preguntas_diarias")
+          .setDescription("Número de GMs aleatorios a preguntar cada día.")
           .setMinValue(1)
           .setMaxValue(30)
       )
       .addIntegerOption((option) =>
-        option.setName("ask_hour").setDescription("Hour to send DMs, 0-23.").setMinValue(0).setMaxValue(23)
+        option.setName("hora_preguntas").setDescription("Hora para enviar DMs, 0-23.").setMinValue(0).setMaxValue(23)
       )
       .addIntegerOption((option) =>
-        option.setName("publish_hour").setDescription("Hour to publish news, 0-23.").setMinValue(0).setMaxValue(23)
+        option.setName("hora_publicacion").setDescription("Hora para publicar noticias, 0-23.").setMinValue(0).setMaxValue(23)
       )
-      .addStringOption((option) => option.setName("timezone").setDescription("IANA timezone, e.g. Europe/Madrid."))
+      .addStringOption((option) => option.setName("zona_horaria").setDescription("Zona horaria IANA, ej. Europe/Madrid."))
   )
   .addSubcommand((subcommand) =>
     subcommand
-      .setName("ask-now")
-      .setDescription("Send journalist questions immediately.")
-      .addUserOption((option) => option.setName("user").setDescription("Specific GM to ask."))
+      .setName("preguntar-ahora")
+      .setDescription("Envía preguntas del periodista inmediatamente.")
+      .addUserOption((option) => option.setName("usuario").setDescription("GM concreto al que preguntar."))
       .addIntegerOption((option) =>
-        option.setName("count").setDescription("Random GM count if no user is selected.").setMinValue(1).setMaxValue(30)
+        option.setName("cantidad").setDescription("Número de GMs aleatorios si no eliges usuario.").setMinValue(1).setMaxValue(30)
       )
   )
-  .addSubcommand((subcommand) => subcommand.setName("publish-now").setDescription("Publish news from unposted answers."))
-  .addSubcommand((subcommand) => subcommand.setName("status").setDescription("Show journalist status."));
+  .addSubcommand((subcommand) => subcommand.setName("publicar-ahora").setDescription("Publica noticias con respuestas pendientes."))
+  .addSubcommand((subcommand) => subcommand.setName("estado").setDescription("Muestra el estado del periodista."));
 
 export const commandPayloads = [gmCommand.toJSON(), journalistCommand.toJSON()];
 
@@ -90,7 +90,7 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
     return;
   }
 
-  if (interaction.commandName === "journalist") {
+  if (interaction.commandName === "periodista") {
     await handleJournalistCommand(interaction, client, store);
   }
 }
@@ -98,9 +98,9 @@ export async function handleCommand(interaction: ChatInputCommandInteraction, cl
 async function handleGmCommand(interaction: ChatInputCommandInteraction, store: JsonStore): Promise<void> {
   const subcommand = interaction.options.getSubcommand();
 
-  if (subcommand === "set") {
-    const user = interaction.options.getUser("user", true);
-    const team = interaction.options.getString("team", true).trim();
+  if (subcommand === "asignar") {
+    const user = interaction.options.getUser("usuario", true);
+    const team = interaction.options.getString("equipo", true).trim();
     const member = await interaction.guild?.members.fetch(user.id).catch(() => undefined);
     const displayName = member?.displayName ?? user.username;
 
@@ -114,27 +114,27 @@ async function handleGmCommand(interaction: ChatInputCommandInteraction, store: 
       };
     });
 
-    await interaction.reply({ content: `Registered ${displayName} as GM of ${team}.`, ephemeral: true });
+    await interaction.reply({ content: `${displayName} queda registrado como GM de ${team}.`, ephemeral: true });
     return;
   }
 
-  if (subcommand === "remove") {
-    const user = interaction.options.getUser("user", true);
+  if (subcommand === "quitar") {
+    const user = interaction.options.getUser("usuario", true);
     await store.mutate((data) => {
       if (data.gms[user.id]) {
         data.gms[user.id].active = false;
       }
     });
-    await interaction.reply({ content: `Removed ${user.username} from the active GM pool.`, ephemeral: true });
+    await interaction.reply({ content: `${user.username} ha sido eliminado del grupo de GMs activos.`, ephemeral: true });
     return;
   }
 
-  if (subcommand === "list") {
+  if (subcommand === "lista") {
     const data = await store.read();
     const gms = Object.values(data.gms).filter((gm) => gm.active);
     const content = gms.length
       ? gms.map((gm) => `- ${gm.displayName}: ${gm.team}`).join("\n")
-      : "No active GMs registered.";
+      : "No hay GMs activos registrados.";
     await interaction.reply({ content, ephemeral: true });
   }
 }
@@ -146,12 +146,12 @@ async function handleJournalistCommand(
 ): Promise<void> {
   const subcommand = interaction.options.getSubcommand();
 
-  if (subcommand === "configure") {
-    const newsChannel = interaction.options.getChannel("news_channel");
-    const dailyQuestions = interaction.options.getInteger("daily_questions");
-    const askHour = interaction.options.getInteger("ask_hour");
-    const publishHour = interaction.options.getInteger("publish_hour");
-    const timezone = interaction.options.getString("timezone");
+  if (subcommand === "configurar") {
+    const newsChannel = interaction.options.getChannel("canal_noticias");
+    const dailyQuestions = interaction.options.getInteger("preguntas_diarias");
+    const askHour = interaction.options.getInteger("hora_preguntas");
+    const publishHour = interaction.options.getInteger("hora_publicacion");
+    const timezone = interaction.options.getString("zona_horaria");
 
     const settings = await store.mutate((data) => {
       if (newsChannel) {
@@ -174,55 +174,55 @@ async function handleJournalistCommand(
 
     await interaction.reply({
       content: [
-        "Journalist configuration updated.",
-        `News channel: ${settings.newsChannelId ? `<#${settings.newsChannelId}>` : "not set"}`,
-        `Daily questions: ${settings.dailyQuestionCount}`,
-        `Ask hour: ${settings.askHour}:00`,
-        `Publish hour: ${settings.publishHour}:00`,
-        `Timezone: ${settings.timezone}`
+        "Configuración del periodista actualizada.",
+        `Canal de noticias: ${settings.newsChannelId ? `<#${settings.newsChannelId}>` : "sin configurar"}`,
+        `Preguntas diarias: ${settings.dailyQuestionCount}`,
+        `Hora de preguntas: ${settings.askHour}:00`,
+        `Hora de publicación: ${settings.publishHour}:00`,
+        `Zona horaria: ${settings.timezone}`
       ].join("\n"),
       ephemeral: true
     });
     return;
   }
 
-  if (subcommand === "ask-now") {
+  if (subcommand === "preguntar-ahora") {
     await interaction.deferReply({ ephemeral: true });
-    const user = interaction.options.getUser("user");
-    const count = interaction.options.getInteger("count");
+    const user = interaction.options.getUser("usuario");
+    const count = interaction.options.getInteger("cantidad");
     const result = user
       ? await askSpecificGm(client, store, user.id)
       : await askRandomGms(client, store, count ?? (await store.read()).settings.dailyQuestionCount);
 
     await interaction.editReply(
-      `Attempted ${result.attempted} DM question(s). Sent ${result.sent}. Failed ${result.failed}.`
+      `Preguntas por DM intentadas: ${result.attempted}. Enviadas: ${result.sent}. Fallidas: ${result.failed}.`
     );
     return;
   }
 
-  if (subcommand === "publish-now") {
+  if (subcommand === "publicar-ahora") {
     await interaction.deferReply({ ephemeral: true });
     const result = await publishNews(client, store);
     if (!result.posted) {
-      await interaction.editReply(`No article posted: ${result.reason}`);
+      await interaction.editReply(`No se ha publicado ningún artículo: ${result.reason}`);
       return;
     }
 
-    await interaction.editReply(`Published "${result.title}" using ${result.answersUsed} answer(s).`);
+    await interaction.editReply(`Publicado "${result.title}" usando ${result.answersUsed} respuesta(s).`);
     return;
   }
 
-  if (subcommand === "status") {
+  if (subcommand === "estado") {
     const data = await store.read();
     const activeGms = Object.values(data.gms).filter((gm) => gm.active).length;
     const pendingPrompts = data.prompts.filter((prompt) => prompt.status === "sent").length;
     await interaction.reply({
       content: [
-        `Active GMs: ${activeGms}`,
-        `Pending DM answers: ${pendingPrompts}`,
-        `Unposted answers: ${countUnpostedAnswers(data)}`,
-        `News channel: ${data.settings.newsChannelId ? `<#${data.settings.newsChannelId}>` : "not set"}`,
-        `Schedule: asks at ${data.settings.askHour}:00, publishes at ${data.settings.publishHour}:00 (${data.settings.timezone})`
+        `GMs activos: ${activeGms}`,
+        `Preguntas pendientes de respuesta: ${pendingPrompts}`,
+        `Respuestas sin publicar: ${countUnpostedAnswers(data)}`,
+        `Canal de noticias: ${data.settings.newsChannelId ? `<#${data.settings.newsChannelId}>` : "sin configurar"}`,
+        `Horario: pregunta a las ${data.settings.askHour}:00, publica a las ${data.settings.publishHour}:00 (${data.settings.timezone})`
       ].join("\n"),
       ephemeral: true
     });
