@@ -71,6 +71,28 @@ Shows the current bot configuration and pending answer counts.
 5. Use `/journalist publish-now` to test the article output.
 6. Leave the bot running for automatic daily questions and publishing.
 
+## Railway Deployment
+
+Deploy this repository as a Node.js service with this start command:
+
+```bash
+npm start
+```
+
+Set these Railway variables:
+
+```env
+DISCORD_TOKEN=your_raw_discord_bot_token
+DISCORD_GUILD_ID=your_discord_server_id
+JOURNALIST_NAME=The Association Insider
+OPENAI_API_KEY=optional_openai_key
+OPENAI_MODEL=gpt-5.4
+```
+
+`DISCORD_TOKEN` must be the bot token from Discord Developer Portal > Bot > Token. Do not use the client secret, public key, application ID, OAuth URL, quotes, or a leading `Bot ` prefix.
+
+Keep the Railway service at one replica. Multiple replicas can send duplicate DMs and duplicate news posts.
+
 ## Notes
 
 - Times use the configured timezone, defaulting to `Europe/Madrid`.

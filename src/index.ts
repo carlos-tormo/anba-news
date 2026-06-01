@@ -52,4 +52,18 @@ client.on(Events.MessageCreate, async (message) => {
   }
 });
 
-await client.login(env.discordToken);
+try {
+  await client.login(env.discordToken);
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (message.toLowerCase().includes("invalid token")) {
+    console.error(
+      [
+        "Discord rejected DISCORD_TOKEN.",
+        "In Railway, set DISCORD_TOKEN to the raw Bot token from Discord Developer Portal > Bot > Reset Token/Copy Token.",
+        "Do not use the Client Secret, Public Key, Application ID, OAuth URL, quotes, or a leading 'Bot ' prefix."
+      ].join(" ")
+    );
+  }
+  throw error;
+}
