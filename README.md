@@ -62,7 +62,7 @@ Muestra los GMs registrados.
 Configura el canal de noticias, canales de contexto, preguntas diarias, hora de preguntas, hora de publicación y zona horaria.
 
 `/periodista preguntar-ahora`  
-Envía preguntas inmediatamente a una muestra aleatoria de GMs o a un GM concreto.
+Envía preguntas inmediatamente a los GMs que llevan más tiempo sin ser preguntados, o a un GM concreto.
 
 `/periodista publicar-ahora`  
 Publica una noticia inmediatamente usando respuestas pendientes.
@@ -172,5 +172,6 @@ Las preguntas de comunidad no se envían inmediatamente. Si pasan el filtro, que
 
 - Los horarios usan la zona horaria configurada, por defecto `Europe/Madrid`.
 - Por defecto el bot pregunta a las 10:00 y publica a las 21:00.
-- Los GMs con una pregunta abierta sin responder no reciben otra pregunta aleatoria para evitar acumular DMs.
+- Los GMs con una pregunta abierta sin responder no reciben otra pregunta para evitar acumular DMs.
+- Cuando se pregunta a varios GMs, el bot prioriza a quienes llevan más tiempo sin recibir una pregunta, con desempate aleatorio.
 - Puedes editar `config/questions.json` para adaptar el tono de las preguntas a tu liga.

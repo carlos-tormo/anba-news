@@ -43,17 +43,35 @@ export interface PublishResult {
   rumorsUsed: number;
 }
 
-function shuffle<T>(items: T[]): T[] {
-  return [...items].sort(() => Math.random() - 0.5);
-}
-
 function hasOpenPrompt(data: BotData, userId: string): boolean {
   return data.prompts.some((prompt) => prompt.userId === userId && prompt.status === "sent");
 }
 
+function latestQuestionTimestamp(data: BotData, userId: string): number {
+  const latestPrompt = data.prompts
+    .filter((prompt) => prompt.userId === userId && prompt.status !== "failed")
+    .sort((a, b) => b.sentAt.localeCompare(a.sentAt))[0];
+
+  return latestPrompt ? new Date(latestPrompt.sentAt).getTime() : 0;
+}
+
 function selectGms(data: BotData, count: number): GmRecord[] {
   const eligible = Object.values(data.gms).filter((gm) => gm.active && !hasOpenPrompt(data, gm.userId));
-  return shuffle(eligible).slice(0, count);
+  return eligible
+    .map((gm) => ({
+      gm,
+      latestQuestionAt: latestQuestionTimestamp(data, gm.userId),
+      tieBreaker: Math.random()
+    }))
+    .sort((a, b) => {
+      if (a.latestQuestionAt !== b.latestQuestionAt) {
+        return a.latestQuestionAt - b.latestQuestionAt;
+      }
+
+      return a.tieBreaker - b.tieBreaker;
+    })
+    .slice(0, count)
+    .map((item) => item.gm);
 }
 
 function latestOpenPrompt(data: BotData, userId: string): PromptRecord | undefined {
