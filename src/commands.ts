@@ -79,6 +79,9 @@ const gmCommand = new SlashCommandBuilder()
       .setDescription("Registra o actualiza un GM.")
       .addUserOption((option) => option.setName("usuario").setDescription("Usuario de Discord.").setRequired(true))
       .addStringOption((option) => option.setName("equipo").setDescription("Nombre de la franquicia.").setRequired(true))
+      .addStringOption((option) =>
+        option.setName("codigo_equipo").setDescription("Código del equipo en ANBA Excel, ej. LAL.").setMaxLength(8)
+      )
   )
   .addSubcommand((subcommand) =>
     subcommand
@@ -234,20 +237,28 @@ async function handleGmCommand(interaction: ChatInputCommandInteraction, store: 
   if (subcommand === "asignar") {
     const user = interaction.options.getUser("usuario", true);
     const team = interaction.options.getString("equipo", true).trim();
+    const teamCode = interaction.options.getString("codigo_equipo")?.trim().toUpperCase();
     const member = await interaction.guild?.members.fetch(user.id).catch(() => undefined);
     const displayName = member?.displayName ?? user.username;
 
-    await store.mutate((data) => {
+    const gm = await store.mutate((data) => {
+      const existing = data.gms[user.id];
+      const previousTeamCode = existing?.team === team ? existing.teamCode : undefined;
       data.gms[user.id] = {
         userId: user.id,
         team,
+        teamCode: teamCode || previousTeamCode,
         displayName,
         active: true,
-        addedAt: data.gms[user.id]?.addedAt ?? new Date().toISOString()
+        addedAt: existing?.addedAt ?? new Date().toISOString()
       };
+      return data.gms[user.id];
     });
 
-    await interaction.reply({ content: `${displayName} queda registrado como GM de ${team}.`, ephemeral: true });
+    await interaction.reply({
+      content: `${displayName} queda registrado como GM de ${team}${gm.teamCode ? ` (${gm.teamCode})` : ""}.`,
+      ephemeral: true
+    });
     return;
   }
 
@@ -266,7 +277,7 @@ async function handleGmCommand(interaction: ChatInputCommandInteraction, store: 
     const data = await store.read();
     const gms = Object.values(data.gms).filter((gm) => gm.active);
     const content = gms.length
-      ? gms.map((gm) => `- ${gm.displayName}: ${gm.team}`).join("\n")
+      ? gms.map((gm) => `- ${gm.displayName}: ${gm.team}${gm.teamCode ? ` (${gm.teamCode})` : ""}`).join("\n")
       : "No hay GMs activos registrados.";
     await interaction.reply({ content, ephemeral: true });
   }
@@ -372,6 +383,7 @@ async function handleJournalistCommand(
     const data = await store.read();
     const activeGmRecords = Object.values(data.gms).filter((gm) => gm.active);
     const activeGms = activeGmRecords.length;
+    const gmsWithTeamCode = activeGmRecords.filter((gm) => gm.teamCode).length;
     const pendingPrompts = data.prompts.filter((prompt) => prompt.status === "sent").length;
     const usersWithOpenPrompts = new Set(data.prompts.filter((prompt) => prompt.status === "sent").map((prompt) => prompt.userId));
     const eligibleGms = activeGmRecords.filter((gm) => !usersWithOpenPrompts.has(gm.userId)).length;
@@ -387,6 +399,7 @@ async function handleJournalistCommand(
         `Respuestas sin publicar: ${countUnpostedAnswers(data)}`,
         `Rumores aceptados: ${pendingRumors}`,
         `Preguntas de comunidad en cola: ${pendingCommunityQuestions}`,
+        `Contexto ANBA Excel: ${env.anbaExcelBaseUrl ? `configurado (${gmsWithTeamCode}/${activeGms} GMs con código)` : "sin configurar"}`,
         `Canal de noticias: ${data.settings.newsChannelId ? `<#${data.settings.newsChannelId}>` : "sin configurar"}`,
         `Canales de contexto: ${formatChannelList(data.settings.contextChannelIds)}`,
         `Ventana de contexto: ${data.settings.contextLookbackHours} h`,

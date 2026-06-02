@@ -32,6 +32,7 @@ export const env = {
   openaiApiKey: normalizeEnvValue(process.env.OPENAI_API_KEY),
   openaiModel: normalizeEnvValue(process.env.OPENAI_MODEL) ?? "gpt-5.4",
   journalistName: normalizeEnvValue(process.env.JOURNALIST_NAME) ?? "El Insider de la Liga",
+  anbaExcelBaseUrl: normalizeEnvValue(process.env.ANBA_EXCEL_BASE_URL),
   dataFile: path.resolve(rootDir, normalizeEnvValue(process.env.DATA_FILE) ?? "data/league-journalist.json"),
   questionFile: path.resolve(rootDir, normalizeEnvValue(process.env.QUESTION_FILE) ?? "config/questions.json")
 };

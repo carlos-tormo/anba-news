@@ -15,6 +15,7 @@ export interface BotSettings {
 export interface GmRecord {
   userId: string;
   team: string;
+  teamCode?: string;
   displayName: string;
   active: boolean;
   addedAt: string;
@@ -32,6 +33,8 @@ export interface PromptRecord {
   answer?: string;
   error?: string;
   contextMessageUrls?: string[];
+  snapshotTeamCode?: string;
+  snapshotSourceUrl?: string;
   submittedQuestionId?: string;
 }
 

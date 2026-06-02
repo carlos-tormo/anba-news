@@ -7,6 +7,7 @@ import {
   type TextChannel
 } from "discord.js";
 import { randomUUID } from "node:crypto";
+import { createAnbaSnapshotClient, type AnbaSnapshotClient, type TeamSnapshotContext } from "./anba-snapshot.js";
 import { env } from "./config.js";
 import {
   buildFranchiseContext,
@@ -98,18 +99,28 @@ async function sendQuestion(
   store: JsonStore,
   gm: GmRecord,
   leagueMessages: LeagueContextMessage[],
-  submittedQuestions: SubmittedQuestionRecord[]
+  submittedQuestions: SubmittedQuestionRecord[],
+  snapshotClient: AnbaSnapshotClient | null
 ): Promise<boolean> {
   const questions = await loadQuestionBank();
   const template = pickRandomQuestion(questions);
   const franchiseContext = buildFranchiseContext(leagueMessages, gm);
+  let snapshotContext: TeamSnapshotContext | null = null;
   let writtenQuestion: WrittenQuestion = {
     category: template.category,
     question: renderQuestion(template, gm)
   };
 
+  if (env.openaiApiKey && snapshotClient) {
+    try {
+      snapshotContext = await snapshotClient.getTeamContext(gm);
+    } catch (error) {
+      console.warn(`[snapshot] Failed to build team snapshot for ${gm.team}:`, error);
+    }
+  }
+
   try {
-    writtenQuestion = await writeQuestion(gm, template, franchiseContext, submittedQuestions);
+    writtenQuestion = await writeQuestion(gm, template, franchiseContext, submittedQuestions, snapshotContext);
   } catch (error) {
     console.warn(`[question] Failed to generate contextual question for ${gm.team}:`, error);
   }
@@ -123,6 +134,8 @@ async function sendQuestion(
     status: "created",
     sentAt: new Date().toISOString(),
     contextMessageUrls: contextSourceUrls(franchiseContext),
+    snapshotTeamCode: snapshotContext?.teamCode,
+    snapshotSourceUrl: snapshotContext?.sourceUrl,
     submittedQuestionId: writtenQuestion.submittedQuestionId
   };
 
@@ -175,12 +188,20 @@ export async function askRandomGms(client: Client, store: JsonStore, count: numb
   const data = await store.read();
   const selected = selectGms(data, count);
   const leagueMessages = await collectRecentLeagueMessages(client, data.settings);
+  const snapshotClient = createAnbaSnapshotClient(env.anbaExcelBaseUrl);
   const todayDateKey = getZonedNow(data.settings.timezone).dateKey;
   let sent = 0;
   let failed = 0;
 
   for (const gm of selected) {
-    const ok = await sendQuestion(client, store, gm, leagueMessages, submittedQuestionBacklog(data, gm, todayDateKey));
+    const ok = await sendQuestion(
+      client,
+      store,
+      gm,
+      leagueMessages,
+      submittedQuestionBacklog(data, gm, todayDateKey),
+      snapshotClient
+    );
     if (ok) {
       sent += 1;
     } else {
@@ -200,8 +221,16 @@ export async function askSpecificGm(client: Client, store: JsonStore, userId: st
   }
 
   const leagueMessages = await collectRecentLeagueMessages(client, data.settings);
+  const snapshotClient = createAnbaSnapshotClient(env.anbaExcelBaseUrl);
   const todayDateKey = getZonedNow(data.settings.timezone).dateKey;
-  const ok = await sendQuestion(client, store, gm, leagueMessages, submittedQuestionBacklog(data, gm, todayDateKey));
+  const ok = await sendQuestion(
+    client,
+    store,
+    gm,
+    leagueMessages,
+    submittedQuestionBacklog(data, gm, todayDateKey),
+    snapshotClient
+  );
   return { attempted: 1, sent: ok ? 1 : 0, failed: ok ? 0 : 1 };
 }
 

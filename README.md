@@ -10,6 +10,7 @@ Bot de Discord para una liga NBA2K de simulación completa con GMs reales. El bo
 - Permite que cualquier miembro filtre un rumor con `/rumor`, limitado a un rumor aceptado por día.
 - Permite que cualquier miembro proponga una pregunta para un GM con `/pregunta`.
 - Publica una noticia diaria con las respuestas pendientes.
+- Puede usar snapshots de ANBA Excel con rosters, picks, contratos y economía de cada franquicia.
 - Usa OpenAI para redactar noticias más elaboradas si `OPENAI_API_KEY` está configurada.
 - Si no hay clave de OpenAI, publica un resumen simple.
 - Guarda los datos localmente en `data/league-journalist.json`.
@@ -49,8 +50,8 @@ npm run dev
 
 Estos comandos solo los puede ejecutar el administrador del bot si `BOT_ADMIN_USER_IDS` está configurado. Si no está configurado, el bot mantiene el comportamiento anterior y permite usuarios con permiso `Manage Server`.
 
-`/gm asignar usuario:@Usuario equipo:"Los Angeles Lakers"`  
-Registra o actualiza un GM.
+`/gm asignar usuario:@Usuario equipo:"Los Angeles Lakers" codigo_equipo:LAL`  
+Registra o actualiza un GM. `codigo_equipo` es opcional, pero recomendado si usas contexto de ANBA Excel.
 
 `/gm quitar usuario:@Usuario`  
 Elimina a un GM del grupo activo.
@@ -89,7 +90,7 @@ Propone una pregunta para un GM registrado. El bot la modera y, si la acepta, la
 2. Regístrate como GM de prueba:
 
 ```text
-/gm asignar usuario:@TuUsuario equipo:"Los Angeles Lakers"
+/gm asignar usuario:@TuUsuario equipo:"Los Angeles Lakers" codigo_equipo:LAL
 ```
 
 3. Comprueba el estado:
@@ -131,6 +132,7 @@ BOT_ADMIN_USER_IDS=tu_id_de_usuario_de_discord
 JOURNALIST_NAME=El Insider de la Liga
 OPENAI_API_KEY=clave_opcional_de_openai
 OPENAI_MODEL=gpt-5.4
+ANBA_EXCEL_BASE_URL=https://anba-excel-production.up.railway.app
 ```
 
 `DISCORD_TOKEN` debe ser el token del bot desde Discord Developer Portal > Bot > Token. No uses el client secret, public key, application ID, URL OAuth, comillas ni el prefijo `Bot `.
@@ -161,6 +163,24 @@ Cuando envía una pregunta, el bot:
 - Si no hay contexto útil o no hay OpenAI configurado, usa el banco normal de preguntas.
 
 El bot necesita permiso para ver esos canales y leer el historial de mensajes.
+
+## Snapshot ANBA Excel
+
+Si configuras `ANBA_EXCEL_BASE_URL`, el bot puede leer la app ANBA Excel cuando vaya a enviar preguntas. Usa estos endpoints de la app:
+
+- `/api/teams` para resolver equipos y códigos.
+- `/api/tracker` para balances resumidos de cap, luxury, apron, roster y picks.
+- `/api/teams/{codigo}` para roster, contratos, dead cap, derechos y assets de draft.
+
+El snapshot se resume antes de enviarlo a OpenAI, así que no se manda el JSON completo. Sirve para preguntas sobre margen económico, apron, picks disponibles/vendidos, huecos de roster, contratos altos o expirings.
+
+Para que el enlace sea fiable, registra cada GM con su código de equipo:
+
+```text
+/gm asignar usuario:@GM equipo:"Los Angeles Lakers" codigo_equipo:LAL
+```
+
+Si no hay `codigo_equipo`, el bot intentará casar el nombre de franquicia con la lista de ANBA Excel, pero el código explícito es más seguro.
 
 ## Rumores y Preguntas de Comunidad
 
