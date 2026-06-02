@@ -295,15 +295,26 @@ export async function publishNews(client: Client, store: JsonStore): Promise<Pub
   return { posted: true, title: article.title, answersUsed: answers.length, rumorsUsed: rumors.length };
 }
 
-export async function markAskedToday(store: JsonStore): Promise<void> {
+export async function markAskedToday(store: JsonStore, result?: AskResult): Promise<void> {
   await store.mutate((data) => {
     data.lastRun.askedDate = getZonedNow(data.settings.timezone).dateKey;
+    data.lastRun.askedAt = new Date().toISOString();
+    if (result) {
+      data.lastRun.askedAttempted = result.attempted;
+      data.lastRun.askedSent = result.sent;
+      data.lastRun.askedFailed = result.failed;
+    }
   });
 }
 
-export async function markPublishedToday(store: JsonStore): Promise<void> {
+export async function markPublishedToday(store: JsonStore, result?: PublishResult): Promise<void> {
   await store.mutate((data) => {
     data.lastRun.publishedDate = getZonedNow(data.settings.timezone).dateKey;
+    data.lastRun.publishedAt = new Date().toISOString();
+    if (result) {
+      data.lastRun.publishedPosted = result.posted;
+      data.lastRun.publishedReason = result.reason;
+    }
   });
 }
 

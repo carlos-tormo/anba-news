@@ -16,6 +16,34 @@ function formatChannelList(channelIds: string[]): string {
   return channelIds.length > 0 ? channelIds.map((channelId) => `<#${channelId}>`).join(", ") : "sin configurar";
 }
 
+function formatLastAskRun(data: Awaited<ReturnType<JsonStore["read"]>>): string {
+  if (!data.lastRun.askedDate) {
+    return "nunca";
+  }
+
+  const stats =
+    data.lastRun.askedAttempted !== undefined
+      ? `; enviadas ${data.lastRun.askedSent ?? 0}/${data.lastRun.askedAttempted}, fallidas ${data.lastRun.askedFailed ?? 0}`
+      : "";
+
+  return `${data.lastRun.askedDate}${data.lastRun.askedAt ? ` (${data.lastRun.askedAt}${stats})` : ""}`;
+}
+
+function formatLastPublishRun(data: Awaited<ReturnType<JsonStore["read"]>>): string {
+  if (!data.lastRun.publishedDate) {
+    return "nunca";
+  }
+
+  const status =
+    data.lastRun.publishedPosted === undefined
+      ? ""
+      : data.lastRun.publishedPosted
+        ? "; publicada"
+        : `; omitida${data.lastRun.publishedReason ? `: ${data.lastRun.publishedReason}` : ""}`;
+
+  return `${data.lastRun.publishedDate}${data.lastRun.publishedAt ? ` (${data.lastRun.publishedAt}${status})` : ""}`;
+}
+
 function getInteractionDisplayName(interaction: ChatInputCommandInteraction): string {
   return interaction.member && "displayName" in interaction.member && typeof interaction.member.displayName === "string"
     ? interaction.member.displayName
@@ -342,14 +370,19 @@ async function handleJournalistCommand(
 
   if (subcommand === "estado") {
     const data = await store.read();
-    const activeGms = Object.values(data.gms).filter((gm) => gm.active).length;
+    const activeGmRecords = Object.values(data.gms).filter((gm) => gm.active);
+    const activeGms = activeGmRecords.length;
     const pendingPrompts = data.prompts.filter((prompt) => prompt.status === "sent").length;
+    const usersWithOpenPrompts = new Set(data.prompts.filter((prompt) => prompt.status === "sent").map((prompt) => prompt.userId));
+    const eligibleGms = activeGmRecords.filter((gm) => !usersWithOpenPrompts.has(gm.userId)).length;
     const usedRumorIds = new Set(data.articles.flatMap((article) => article.sourceRumorIds ?? []));
     const pendingRumors = data.rumors.filter((rumor) => rumor.status === "accepted" && !usedRumorIds.has(rumor.id)).length;
     const pendingCommunityQuestions = data.submittedQuestions.filter((question) => question.status === "accepted").length;
     await interaction.reply({
       content: [
         `GMs activos: ${activeGms}`,
+        `GMs elegibles ahora: ${eligibleGms}`,
+        `Preguntas diarias: ${data.settings.dailyQuestionCount}`,
         `Preguntas pendientes de respuesta: ${pendingPrompts}`,
         `Respuestas sin publicar: ${countUnpostedAnswers(data)}`,
         `Rumores aceptados: ${pendingRumors}`,
@@ -357,7 +390,9 @@ async function handleJournalistCommand(
         `Canal de noticias: ${data.settings.newsChannelId ? `<#${data.settings.newsChannelId}>` : "sin configurar"}`,
         `Canales de contexto: ${formatChannelList(data.settings.contextChannelIds)}`,
         `Ventana de contexto: ${data.settings.contextLookbackHours} h`,
-        `Horario: pregunta a las ${data.settings.askHour}:00, publica a las ${data.settings.publishHour}:00 (${data.settings.timezone})`
+        `Horario: pregunta a las ${data.settings.askHour}:00, publica a las ${data.settings.publishHour}:00 (${data.settings.timezone})`,
+        `Última ronda programada: ${formatLastAskRun(data)}`,
+        `Última publicación programada: ${formatLastPublishRun(data)}`
       ].join("\n"),
       ephemeral: true
     });

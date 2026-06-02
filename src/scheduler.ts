@@ -15,7 +15,7 @@ export function startScheduler(client: Client, store: JsonStore): NodeJS.Timeout
 
     if (now.hour === data.settings.askHour && data.lastRun.askedDate !== now.dateKey) {
       const result = await askRandomGms(client, store, data.settings.dailyQuestionCount);
-      await markAskedToday(store);
+      await markAskedToday(store, result);
       console.log(
         `[scheduler] ${now.dateKey} asked ${result.sent}/${result.attempted} GM(s), failed ${result.failed}.`
       );
@@ -23,7 +23,7 @@ export function startScheduler(client: Client, store: JsonStore): NodeJS.Timeout
 
     if (now.hour === data.settings.publishHour && data.lastRun.publishedDate !== now.dateKey) {
       const result = await publishNews(client, store);
-      await markPublishedToday(store);
+      await markPublishedToday(store, result);
       console.log(
         result.posted
           ? `[scheduler] ${now.dateKey} published "${result.title}".`

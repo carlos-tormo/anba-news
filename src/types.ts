@@ -76,7 +76,14 @@ export interface SubmittedQuestionRecord {
 
 export interface LastRunState {
   askedDate?: string;
+  askedAt?: string;
+  askedAttempted?: number;
+  askedSent?: number;
+  askedFailed?: number;
   publishedDate?: string;
+  publishedAt?: string;
+  publishedPosted?: boolean;
+  publishedReason?: string;
 }
 
 export interface BotData {
