@@ -18,7 +18,7 @@ import {
 import { chunkDiscordMessage } from "./messages.js";
 import { generateArticle } from "./news.js";
 import { loadQuestionBank, pickRandomQuestion, renderQuestion } from "./questions.js";
-import { writeQuestion, type WrittenQuestion } from "./question-writer.js";
+import { writeQuestion, type RecentCoverageContext, type WrittenQuestion } from "./question-writer.js";
 import { dateKeyForIso, getZonedNow } from "./time.js";
 import type {
   AnswerForArticle,
@@ -43,6 +43,9 @@ export interface PublishResult {
   answersUsed: number;
   rumorsUsed: number;
 }
+
+const MAX_RECENT_QUESTIONS_FOR_PROMPT = 6;
+const MAX_RECENT_ARTICLES_FOR_PROMPT = 5;
 
 function hasOpenPrompt(data: BotData, userId: string): boolean {
   return data.prompts.some((prompt) => prompt.userId === userId && prompt.status === "sent");
@@ -94,12 +97,28 @@ function submittedQuestionBacklog(
     .slice(0, 3);
 }
 
+function buildRecentCoverageContext(data: BotData, gm: GmRecord): RecentCoverageContext {
+  const recentQuestions = data.prompts
+    .filter((prompt) => prompt.status !== "failed" && (prompt.userId === gm.userId || prompt.team === gm.team))
+    .sort((a, b) => b.sentAt.localeCompare(a.sentAt))
+    .slice(0, MAX_RECENT_QUESTIONS_FOR_PROMPT)
+    .map((prompt) => `- ${prompt.sentAt.slice(0, 10)} [${prompt.category}] ${prompt.team}: ${prompt.question}`);
+
+  const recentArticles = [...data.articles]
+    .sort((a, b) => b.postedAt.localeCompare(a.postedAt))
+    .slice(0, MAX_RECENT_ARTICLES_FOR_PROMPT)
+    .map((article) => `- ${article.postedAt.slice(0, 10)}: ${article.title}`);
+
+  return { recentQuestions, recentArticles };
+}
+
 async function sendQuestion(
   client: Client,
   store: JsonStore,
   gm: GmRecord,
   leagueMessages: LeagueContextMessage[],
   submittedQuestions: SubmittedQuestionRecord[],
+  recentCoverage: RecentCoverageContext,
   snapshotClient: AnbaSnapshotClient | null
 ): Promise<boolean> {
   const questions = await loadQuestionBank();
@@ -120,7 +139,14 @@ async function sendQuestion(
   }
 
   try {
-    writtenQuestion = await writeQuestion(gm, template, franchiseContext, submittedQuestions, snapshotContext);
+    writtenQuestion = await writeQuestion(
+      gm,
+      template,
+      franchiseContext,
+      submittedQuestions,
+      snapshotContext,
+      recentCoverage
+    );
   } catch (error) {
     console.warn(`[question] Failed to generate contextual question for ${gm.team}:`, error);
   }
@@ -200,6 +226,7 @@ export async function askRandomGms(client: Client, store: JsonStore, count: numb
       gm,
       leagueMessages,
       submittedQuestionBacklog(data, gm, todayDateKey),
+      buildRecentCoverageContext(data, gm),
       snapshotClient
     );
     if (ok) {
@@ -229,6 +256,7 @@ export async function askSpecificGm(client: Client, store: JsonStore, userId: st
     gm,
     leagueMessages,
     submittedQuestionBacklog(data, gm, todayDateKey),
+    buildRecentCoverageContext(data, gm),
     snapshotClient
   );
   return { attempted: 1, sent: ok ? 1 : 0, failed: ok ? 0 : 1 };
