@@ -60,7 +60,7 @@ Elimina a un GM del grupo activo.
 Muestra los GMs registrados.
 
 `/periodista configurar`  
-Configura el canal de noticias, canales de contexto, preguntas diarias, hora de preguntas, hora de publicación y zona horaria.
+Configura el canal de noticias, hasta 5 canales de contexto, preguntas diarias, hora de preguntas, hora de publicación y zona horaria.
 
 `/periodista preguntar-ahora`  
 Envía preguntas inmediatamente a los GMs que llevan más tiempo sin ser preguntados, o a un GM concreto.
@@ -84,7 +84,7 @@ Propone una pregunta para un GM registrado. El bot la modera y, si la acepta, la
 1. Configura el canal de noticias:
 
 ```text
-/periodista configurar canal_noticias:#noticias canal_contexto_1:#noticias canal_contexto_2:#transacciones horas_contexto:48 preguntas_diarias:1 hora_preguntas:10 hora_publicacion:21 zona_horaria:Europe/Madrid
+/periodista configurar canal_noticias:#prensa canal_contexto_1:#noticias canal_contexto_2:#transacciones canal_contexto_3:#rumores horas_contexto:48 preguntas_diarias:1 hora_preguntas:10 hora_publicacion:21 zona_horaria:Europe/Madrid
 ```
 
 2. Regístrate como GM de prueba:
@@ -147,12 +147,12 @@ BOT_ADMIN_USER_IDS=111111111111111111,222222222222222222
 
 ## Contexto Reciente
 
-El bot puede leer los últimos mensajes de canales como `#noticias` y `#transacciones` para adaptar las preguntas a la actualidad de la liga.
+El bot puede leer los últimos mensajes de hasta 5 canales como `#noticias`, `#transacciones` o `#rumores` para adaptar las preguntas a la actualidad de la liga.
 
 Ejemplo:
 
 ```text
-/periodista configurar canal_contexto_1:#noticias canal_contexto_2:#transacciones horas_contexto:48
+/periodista configurar canal_contexto_1:#noticias canal_contexto_2:#transacciones canal_contexto_3:#rumores canal_contexto_4:#lesiones canal_contexto_5:#mercado horas_contexto:48
 ```
 
 Cuando envía una pregunta, el bot:

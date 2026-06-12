@@ -5,6 +5,7 @@ const MAX_PAGES_PER_CHANNEL = 5;
 const MAX_DIRECT_MESSAGES = 12;
 const MAX_GENERAL_MESSAGES = 8;
 const MAX_MESSAGE_CHARS = 600;
+export const MAX_CONTEXT_CHANNELS = 5;
 
 export interface LeagueContextMessage {
   channelId: string;
@@ -155,7 +156,7 @@ export async function collectRecentLeagueMessages(
   client: Client,
   settings: BotSettings
 ): Promise<LeagueContextMessage[]> {
-  const channelIds = [...new Set(settings.contextChannelIds)].filter(Boolean);
+  const channelIds = [...new Set(settings.contextChannelIds)].filter(Boolean).slice(0, MAX_CONTEXT_CHANNELS);
   if (channelIds.length === 0) {
     return [];
   }

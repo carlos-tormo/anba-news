@@ -7,6 +7,7 @@ import {
 } from "discord.js";
 import { randomUUID } from "node:crypto";
 import { env } from "./config.js";
+import { MAX_CONTEXT_CHANNELS } from "./context.js";
 import { askRandomGms, askSpecificGm, countUnpostedAnswers, publishNews } from "./journalist.js";
 import { moderateSubmission } from "./moderation.js";
 import type { JsonStore } from "./store.js";
@@ -114,6 +115,24 @@ const journalistCommand = new SlashCommandBuilder()
         option
           .setName("canal_contexto_2")
           .setDescription("Segundo canal para leer contexto reciente, por ejemplo #transacciones.")
+          .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+      )
+      .addChannelOption((option) =>
+        option
+          .setName("canal_contexto_3")
+          .setDescription("Tercer canal para leer contexto reciente.")
+          .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+      )
+      .addChannelOption((option) =>
+        option
+          .setName("canal_contexto_4")
+          .setDescription("Cuarto canal para leer contexto reciente.")
+          .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+      )
+      .addChannelOption((option) =>
+        option
+          .setName("canal_contexto_5")
+          .setDescription("Quinto canal para leer contexto reciente.")
           .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
       )
       .addIntegerOption((option) =>
@@ -292,8 +311,9 @@ async function handleJournalistCommand(
 
   if (subcommand === "configurar") {
     const newsChannel = interaction.options.getChannel("canal_noticias");
-    const contextChannel1 = interaction.options.getChannel("canal_contexto_1");
-    const contextChannel2 = interaction.options.getChannel("canal_contexto_2");
+    const contextChannels = Array.from({ length: MAX_CONTEXT_CHANNELS }, (_, index) =>
+      interaction.options.getChannel(`canal_contexto_${index + 1}`)
+    );
     const dailyQuestions = interaction.options.getInteger("preguntas_diarias");
     const askHour = interaction.options.getInteger("hora_preguntas");
     const publishHour = interaction.options.getInteger("hora_publicacion");
@@ -307,15 +327,14 @@ async function handleJournalistCommand(
       }
       if (clearContext) {
         data.settings.contextChannelIds = [];
-      } else if (contextChannel1 || contextChannel2) {
-        const contextChannelIds = [...data.settings.contextChannelIds];
-        if (contextChannel1) {
-          contextChannelIds[0] = contextChannel1.id;
-        }
-        if (contextChannel2) {
-          contextChannelIds[1] = contextChannel2.id;
-        }
-        data.settings.contextChannelIds = [...new Set(contextChannelIds.filter(Boolean))];
+      } else if (contextChannels.some(Boolean)) {
+        const contextChannelIds = [...data.settings.contextChannelIds].slice(0, MAX_CONTEXT_CHANNELS);
+        contextChannels.forEach((channel, index) => {
+          if (channel) {
+            contextChannelIds[index] = channel.id;
+          }
+        });
+        data.settings.contextChannelIds = [...new Set(contextChannelIds.filter(Boolean))].slice(0, MAX_CONTEXT_CHANNELS);
       }
       if (dailyQuestions !== null) {
         data.settings.dailyQuestionCount = dailyQuestions;
