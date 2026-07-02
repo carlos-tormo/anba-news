@@ -68,6 +68,9 @@ Envía preguntas inmediatamente a los GMs que llevan más tiempo sin ser pregunt
 `/periodista publicar-ahora`  
 Publica una noticia inmediatamente usando respuestas pendientes.
 
+`/periodista buscar-trade consulta:"find me a trade where New York and Chicago are involved"`
+Busca operaciones en los canales de contexto. Acepta consultas en lenguaje natural y solo está disponible para administradores.
+
 `/periodista estado`  
 Muestra el estado actual del bot.
 
@@ -163,6 +166,18 @@ Cuando envía una pregunta, el bot:
 - Si no hay contexto útil o no hay OpenAI configurado, usa el banco normal de preguntas.
 
 El bot necesita permiso para ver esos canales y leer el historial de mensajes.
+
+## Búsqueda de Traspasos
+
+Los administradores pueden buscar operaciones históricas en los canales de contexto configurados:
+
+```text
+/periodista buscar-trade consulta:"find me a trade where New York and Chicago are involved" dias:365 resultados:5
+```
+
+La búsqueda entiende nombres y códigos de franquicia como `New York`, `Knicks`, `NYK`, `Chicago`, `Bulls` o `CHI`, además de jugadores, años de picks y términos como `primera ronda`, `2028`, `pick`, `trade` o `traspaso`.
+
+El resultado incluye enlaces directos a los mensajes encontrados. La búsqueda revisa como máximo los últimos 3000 mensajes por canal configurado para evitar que una consulta bloquee el bot durante demasiado tiempo.
 
 ## Snapshot ANBA Excel
 

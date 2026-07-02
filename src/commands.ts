@@ -12,6 +12,7 @@ import { askRandomGms, askSpecificGm, countUnpostedAnswers, publishNews } from "
 import { moderateSubmission } from "./moderation.js";
 import type { JsonStore } from "./store.js";
 import { getZonedNow } from "./time.js";
+import { formatTradeSearchSummary, searchTradeHistory } from "./trade-search.js";
 
 function formatChannelList(channelIds: string[]): string {
   return channelIds.length > 0 ? channelIds.map((channelId) => `<#${channelId}>`).join(", ") : "sin configurar";
@@ -167,6 +168,33 @@ const journalistCommand = new SlashCommandBuilder()
       .addUserOption((option) => option.setName("usuario").setDescription("GM concreto al que preguntar."))
       .addIntegerOption((option) =>
         option.setName("cantidad").setDescription("Número de GMs aleatorios si no eliges usuario.").setMinValue(1).setMaxValue(30)
+      )
+  )
+  .addSubcommand((subcommand) =>
+    subcommand
+      .setName("buscar-trade")
+      .setDescription("Busca traspasos u operaciones en los canales de contexto.")
+      .addStringOption((option) =>
+        option
+          .setName("consulta")
+          .setDescription('Pregunta natural, ej. "trade donde New York y Chicago están involucrados".')
+          .setRequired(true)
+          .setMinLength(3)
+          .setMaxLength(300)
+      )
+      .addIntegerOption((option) =>
+        option
+          .setName("dias")
+          .setDescription("Días hacia atrás para buscar. Por defecto 365.")
+          .setMinValue(1)
+          .setMaxValue(3650)
+      )
+      .addIntegerOption((option) =>
+        option
+          .setName("resultados")
+          .setDescription("Número máximo de resultados. Por defecto 5.")
+          .setMinValue(1)
+          .setMaxValue(10)
       )
   )
   .addSubcommand((subcommand) => subcommand.setName("publicar-ahora").setDescription("Publica noticias con respuestas pendientes."))
@@ -395,6 +423,20 @@ async function handleJournalistCommand(
     await interaction.editReply(
       `Publicado "${result.title}" usando ${result.answersUsed} respuesta(s) y ${result.rumorsUsed} rumor(es).`
     );
+    return;
+  }
+
+  if (subcommand === "buscar-trade") {
+    await interaction.deferReply({ ephemeral: true });
+    const query = interaction.options.getString("consulta", true);
+    const days = interaction.options.getInteger("dias");
+    const limit = interaction.options.getInteger("resultados");
+    const data = await store.read();
+    const result = await searchTradeHistory(client, data.settings, { query, days, limit });
+    await interaction.editReply({
+      content: formatTradeSearchSummary(result),
+      allowedMentions: { parse: [] }
+    });
     return;
   }
 
